@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "build": "prisma generate",
+    "postinstall": "prisma generate",
     "dev": "bun --watch src/index.ts",
     "start": "bun src/index.ts",
     "sync": "bun src/sync.ts",

@@ -1,0 +1,57 @@
+# DigitalOcean App Platform Configuration
+# https://docs.digitalocean.com/products/app-platform/
+
+name: millenium-search-worker
+region: fra
+
+# Worker service (no HTTP server, just background process)
+workers:
+  - name: search-worker
+    source_dir: /
+    dockerfile_path: Dockerfile
+    instance_count: 1
+    instance_size_slug: basic-xxs  # $5/month - 512MB RAM, 0.5 vCPU
+
+    # Environment variables
+    envs:
+      - key: DATABASE_URL
+        scope: RUN_TIME
+        type: SECRET
+
+      - key: MEILISEARCH_HOST
+        scope: RUN_TIME
+        value: http://meilisearch:7700  # If using same app, or use external URL
+
+      - key: MEILISEARCH_MASTER_KEY
+        scope: RUN_TIME
+        type: SECRET
+
+      - key: SYNC_INTERVAL_MINUTES
+        scope: RUN_TIME
+        value: "5"
+
+    # Health check (optional - worker doesn't expose HTTP)
+    # health_check:
+    #   http_path: /health
+
+# Optional: Add Meilisearch as a service in the same app
+# services:
+#   - name: meilisearch
+#     image:
+#       registry_type: DOCKER_HUB
+#       registry: getmeili
+#       repository: meilisearch
+#       tag: v1.10
+#     instance_count: 1
+#     instance_size_slug: basic-xs  # $12/month - 1GB RAM
+#     http_port: 7700
+#     envs:
+#       - key: MEILI_MASTER_KEY
+#         scope: RUN_TIME
+#         type: SECRET
+#       - key: MEILI_ENV
+#         scope: RUN_TIME
+#         value: production
+#       - key: MEILI_NO_ANALYTICS
+#         scope: RUN_TIME
+#         value: "true"
