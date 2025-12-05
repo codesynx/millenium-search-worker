@@ -1,10 +1,5 @@
-// This is a symlink reference to the backend Prisma schema
-// The actual schema is in ../backend/prisma/schema.prisma
-
-// For now, we'll generate the client from the backend schema
 generator client {
   provider = "prisma-client-js"
-  output   = "../node_modules/@prisma/client"
 }
 
 datasource db {
@@ -12,5 +7,447 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Note: Run `bunx prisma generate` from the backend directory
-// This will generate the Prisma Client that this worker uses
+model User {
+  id                         String               @id @default(cuid())
+  telegramId                 String?              @unique
+  email                      String               @unique
+  password                   String
+  username                   String?
+  firstName                  String?
+  lastName                   String?
+  photoUrl                   String?
+  phoneNumber                String?              @unique
+  companyName                String?
+  description                String?
+  role                       Role?
+  createdAt                  DateTime             @default(now())
+  updatedAt                  DateTime             @updatedAt
+  bannedAt                   DateTime?
+  bannedReason               String?
+  isBanned                   Boolean              @default(false)
+  city                       String?
+  facePhotoUrl               String?
+  fullNameAsInId             String?
+  idPhotoUrl                 String?
+  rejectedAt                 DateTime?
+  rejectionReason            String?
+  verificationStatus         VerificationStatus   @default(UNVERIFIED)
+  verifiedAt                 DateTime?
+  verifiedBy                 String?
+  companyNameAsInDocuments   String?
+  addressProofUrl            String?
+  bin                        String?
+  businessAddress            String?
+  registrationCertificateUrl String?
+  kaspiPhoneNumber           String?
+  addresses                  Address[]
+  contracts                  Contract[]
+  favorites                  Favorite[]
+  favoriteServices           FavoriteService[]
+  receivedMessages           Message[]            @relation("receivedMessages")
+  sentMessages               Message[]            @relation("sentMessages")
+  readReceipts               MessageReadReceipt[]
+  paymentsAsClient           Payment[]            @relation("ClientPayments")
+  paymentsAsSeller           Payment[]            @relation("SellerPayments")
+  products                   Product[]
+  projects                   Project[]
+  rentApplications           RentApplication[]    @relation("ClientRentApplications")
+  approvedRentals            RentApplication[]    @relation("SellerRentApplications")
+  reviews                    Review[]
+  services                   Service[]
+  subscription               Subscription?
+  chats                      Chat[]               @relation("chatParticipants")
+  purchaseOrders             PurchaseOrder[]
+}
+
+model Subscription {
+  id        String    @id @default(cuid())
+  userId    String    @unique
+  type      SubType   @default(FREE)
+  startDate DateTime  @default(now())
+  endDate   DateTime?
+  user      User      @relation(fields: [userId], references: [id])
+}
+
+model Category {
+  id            String     @id @default(cuid())
+  name          String
+  parentId      String?
+  parent        Category?  @relation("SubCategories", fields: [parentId], references: [id])
+  subCategories Category[] @relation("SubCategories")
+  products      Product[]
+  services      Service[]
+
+  @@unique([name, parentId])
+}
+
+model Product {
+  id               String            @id @default(cuid())
+  name             String
+  description      String
+  price            Float
+  imageUrl         String
+  location         String?
+  listingType      ListingType       @default(RENT)
+  categoryId       String
+  sellerId         String
+  viewCount        Int               @default(0)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  rejectionReason  String?
+  status           ProductStatus     @default(PENDING)
+  // Product type and ranking fields
+  productType      ProductType       @default(RENTAL)
+  rankingPoints    Int               @default(2) // 2 for RENTAL, 1 for RELATED_PRODUCT
+  keywords         String?           // Comma-separated keywords for related products (e.g., "болгарка,перфоратор,инструменты")
+  matchingCategoryIds String?        // Comma-separated category IDs where this related product should appear
+  addressId        String?
+  minRentalDays    Int?
+  rentalPrice      Float?
+  manuallySetUnavailable Boolean        @default(false) // Admin can manually mark product as unavailable
+  favorites        Favorite[]
+  address          Address?          @relation(fields: [addressId], references: [id])
+  category         Category          @relation(fields: [categoryId], references: [id])
+  seller           User              @relation(fields: [sellerId], references: [id])
+  images           ProductImage[]
+  rentApplications RentApplication[]
+  reviews          Review[]
+  purchaseOrders   PurchaseOrder[]
+}
+
+model Service {
+  id              String            @id @default(cuid())
+  name            String
+  description     String
+  price           Float
+  location        String?
+  categoryId      String
+  specialistId    String
+  viewCount       Int               @default(0)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  rejectionReason String?
+  status          ServiceStatus     @default(PENDING)
+  favorites       FavoriteService[]
+  portfolio       PortfolioImage[]
+  reviews         Review[]
+  category        Category          @relation(fields: [categoryId], references: [id])
+  specialist      User              @relation(fields: [specialistId], references: [id])
+}
+
+model PortfolioImage {
+  id        String   @id @default(cuid())
+  url       String
+  serviceId String
+  createdAt DateTime @default(now())
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  url       String
+  productId String
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, productId])
+}
+
+model FavoriteService {
+  id        String   @id @default(cuid())
+  userId    String
+  serviceId String
+  createdAt DateTime @default(now())
+  service   Service  @relation(fields: [serviceId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, serviceId])
+}
+
+model Chat {
+  id           String    @id @default(cuid())
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @default(now()) @updatedAt
+  messages     Message[]
+  participants User[]    @relation("chatParticipants")
+}
+
+model Message {
+  id           String               @id @default(cuid())
+  text         String
+  chatId       String
+  senderId     String
+  receiverId   String
+  createdAt    DateTime             @default(now())
+  chat         Chat                 @relation(fields: [chatId], references: [id])
+  receiver     User                 @relation("receivedMessages", fields: [receiverId], references: [id])
+  sender       User                 @relation("sentMessages", fields: [senderId], references: [id])
+  readReceipts MessageReadReceipt[]
+}
+
+model MessageReadReceipt {
+  id        String   @id @default(cuid())
+  messageId String
+  readerId  String
+  readAt    DateTime @default(now())
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  reader    User     @relation(fields: [readerId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, readerId])
+}
+
+model Project {
+  id           String               @id @default(cuid())
+  name         String
+  description  String?
+  clientId     String
+  status       ProjectStatus        @default(DRAFT)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  client       User                 @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  calculations ProjectCalculation[]
+}
+
+model ProjectCalculation {
+  id                String   @id @default(cuid())
+  projectId         String
+  buildingType      String
+  area              Float
+  floors            Int      @default(1)
+  materials         String
+  additionalSpecs   String?
+  calculationResult String
+  totalCost         Float?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  project           Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Review {
+  id                String           @id @default(cuid())
+  rating            Int
+  comment           String
+  status            ReviewStatus     @default(PENDING)
+  rejectionReason   String?
+  userId            String
+  productId         String?
+  serviceId         String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  rentApplicationId String?
+  product           Product?         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  rentApplication   RentApplication? @relation(fields: [rentApplicationId], references: [id], onDelete: Cascade)
+  service           Service?         @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@unique([userId, serviceId])
+  @@unique([userId, rentApplicationId])
+}
+
+model RentApplication {
+  id                       String     @id @default(cuid())
+  clientId                 String
+  productId                String
+  sellerId                 String
+  status                   RentStatus @default(PENDING)
+  rentDuration             Int
+  totalPrice               Float
+  startDate                DateTime?
+  endDate                  DateTime?
+  approvedAt               DateTime?
+  rejectedAt               DateTime?
+  rejectionReason          String?
+  completedAt              DateTime?
+  createdAt                DateTime   @default(now())
+  updatedAt                DateTime   @updatedAt
+  clientCity               String?
+  clientFullName           String?
+  clientPaidAt             DateTime?
+  clientPhone              String?
+  contractPdfUrl           String?
+  paymentDeadline          DateTime?
+  rentalEndDate            DateTime?
+  rentalStartedAt          DateTime?
+  sellerConfirmedPaymentAt DateTime?
+  contract                 Contract?
+  payment                  Payment?
+  client                   User       @relation("ClientRentApplications", fields: [clientId], references: [id], onDelete: Cascade)
+  product                  Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  seller                   User       @relation("SellerRentApplications", fields: [sellerId], references: [id], onDelete: Cascade)
+  reviews                  Review[]
+}
+
+model Contract {
+  id                 String          @id @default(cuid())
+  rentApplicationId  String          @unique
+  clientId           String
+  clientName         String
+  sellerCompanyName  String
+  toolName           String
+  rentDuration       Int
+  totalAmount        Float
+  status             ContractStatus  @default(PENDING)
+  trustMeContractId  String?
+  contractTemplate   String
+  pdfFileName        String?         // GCS filename for the generated PDF
+  signedAt           DateTime?
+  cancelledAt        DateTime?
+  cancellationReason String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  client             User            @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  rentApplication    RentApplication @relation(fields: [rentApplicationId], references: [id], onDelete: Cascade)
+}
+
+model Payment {
+  id                 String          @id @default(cuid())
+  rentApplicationId  String          @unique
+  clientId           String
+  sellerId           String
+  totalAmount        Float
+  platformFee        Float
+  sellerPayout       Float
+  status             PaymentStatus   @default(PENDING)
+  mockPaymentId      String?
+  heldAt             DateTime?
+  releasedAt         DateTime?
+  cancelledAt        DateTime?
+  cancellationReason String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  clientMarkedPaidAt DateTime?
+  paymentDeadline    DateTime?
+  sellerConfirmedAt  DateTime?
+  sellerKaspiPhone   String?
+  client             User            @relation("ClientPayments", fields: [clientId], references: [id], onDelete: Cascade)
+  rentApplication    RentApplication @relation(fields: [rentApplicationId], references: [id], onDelete: Cascade)
+  seller             User            @relation("SellerPayments", fields: [sellerId], references: [id], onDelete: Cascade)
+}
+
+model Address {
+  id          String    @id @default(cuid())
+  fullAddress String
+  street      String
+  house       String
+  city        String
+  userId      String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  products    Product[]
+}
+
+model PurchaseOrder {
+  id              String             @id @default(cuid())
+  productId       String
+  product         Product            @relation(fields: [productId], references: [id])
+  clientId        String
+  client          User               @relation(fields: [clientId], references: [id])
+  clientName      String             // Editable full name
+  clientPhone     String             // Editable phone number
+  city            String             // City: astana or almaty
+  address         String             // Full address
+  building        String             // Подъезд/офис/дом
+  quantity        Int                @default(1)
+  totalPrice      Float
+  status          PurchaseOrderStatus @default(PENDING)
+  notes           String?            // Additional notes from client
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+}
+
+enum PurchaseOrderStatus {
+  PENDING       // New order, waiting for processing
+  CONFIRMED     // Order confirmed by admin
+  PROCESSING    // Being prepared for delivery
+  DELIVERED     // Successfully delivered
+  CANCELLED     // Cancelled by admin or client
+}
+
+enum Role {
+  ADMIN
+  CLIENT
+  SELLER
+  SPECIALIST
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum RentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  PAYMENT_PENDING
+  PAYMENT_CONFIRMED
+}
+
+enum ContractStatus {
+  PENDING
+  SIGNED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  HELD
+  RELEASED
+  CANCELLED
+}
+
+enum SubType {
+  FREE
+  PRO
+}
+
+enum ListingType {
+  SALE
+  RENT
+}
+
+enum ProductType {
+  RENTAL          // Main rental products (tools)
+  RELATED_PRODUCT // Complementary products for sale
+}
+
+enum ProjectStatus {
+  DRAFT
+  CALCULATED
+  MATERIALS_SEARCHED
+  COMPLETED
+}
+
+enum ProductStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ServiceStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}

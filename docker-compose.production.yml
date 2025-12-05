@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  meilisearch:
+    image: getmeili/meilisearch:v1.10
+    container_name: millenium-meilisearch
+    ports:
+      - "7700:7700"
+    environment:
+      - MEILI_MASTER_KEY=${MEILISEARCH_MASTER_KEY}
+      - MEILI_ENV=production
+      - MEILI_NO_ANALYTICS=true
+    volumes:
+      - meilisearch_data:/meili_data
+    restart: unless-stopped
+    networks:
+      - millenium-network
+
+  search-worker:
+    build: .
+    container_name: millenium-search-worker
+    depends_on:
+      - meilisearch
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - MEILISEARCH_HOST=http://meilisearch:7700  # Use service name in Docker network
+      - MEILISEARCH_MASTER_KEY=${MEILISEARCH_MASTER_KEY}
+      - SYNC_INTERVAL_MINUTES=${SYNC_INTERVAL_MINUTES:-5}
+    restart: unless-stopped
+    networks:
+      - millenium-network
+
+networks:
+  millenium-network:
+    driver: bridge
+
+volumes:
+  meilisearch_data:
