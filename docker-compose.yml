@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  meilisearch:
+    image: getmeili/meilisearch:v1.10
+    container_name: millenium-meilisearch
+    ports:
+      - "7700:7700"
+    environment:
+      - MEILI_MASTER_KEY=${MEILISEARCH_MASTER_KEY:-changeme}
+      - MEILI_ENV=production
+      - MEILI_NO_ANALYTICS=true
+    volumes:
+      - ./data:/meili_data
+    restart: unless-stopped
+    networks:
+      - millenium-network
+
+networks:
+  millenium-network:
+    driver: bridge
+
+volumes:
+  meilisearch_data:

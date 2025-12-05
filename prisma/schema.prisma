@@ -1,0 +1,16 @@
+// This is a symlink reference to the backend Prisma schema
+// The actual schema is in ../backend/prisma/schema.prisma
+
+// For now, we'll generate the client from the backend schema
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/@prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Note: Run `bunx prisma generate` from the backend directory
+// This will generate the Prisma Client that this worker uses
